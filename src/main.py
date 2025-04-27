@@ -59,30 +59,36 @@ with open('../csv/addresses.csv', 'r') as f:
     address_list = [row[1] for row in csv.reader(f)]  # adjust this index if needed!
 
 # Set up trucks and assign packages (these are example IDs, adjust for your project)
-truck1 = Truck("Truck 1", datetime(2025, 1, 1, 8, 0, 0))  # 8:00 AM
-truck2 = Truck("Truck 2", datetime(2025, 1, 1, 9, 5, 0))  # 9:05 AM
-truck3 = Truck("Truck 3", datetime(2025, 1, 1, 10, 20, 0))  # Simulate package 9 fixed by 10:20
+truck1 = Truck("Truck 1", datetime(2025, 1, 1, 8, 0, 0))  # 8:00 AM start time
+truck2 = Truck("Truck 2", datetime(2025, 1, 1, 9, 5, 0))  # 9:05 AM start time
+#truck3 = Truck("Truck 3", datetime(2025, 1, 1, 10, 20, 0))  # Simulate package 9 fixed by 10:20
 
-truck1.load_packages([1, 13, 14, 15, 16, 20])  # Assign packages via their IDs
-truck2.load_packages([3, 6, 18, 25])
-truck3.load_packages([2, 4, 5, 7, 8, 9])  # Includes package 9 which is a special case (cannot be delivered until after 10:20am since the address isn't known)
+#for this part we will load up the trucks with packages via their IDs, prioritizing different packages based on
+# the special notes/delivery deadlines.
+truck1.load_packages([1, 2, 4, 5, 13, 14, 15, 16, 19, 20, 29, 30, 31, 34, 37, 40])  # truck 1 prioritizes the tight deadlines and packages that must be delivered together
+truck2.load_packages([3, 6, 7, 8, 10, 11, 12, 17, 18, 21, 22, 28, 32, 36, 38])  # Waits until 9:05 but does not include package 9 since that will need to be delivered later after 10:20am.
+
+# Display which packages are on each truck before delivery starts
+print("Truck 1 Packages:", [pkg.ID for pkg in truck1.packages])
+print("Truck 2 Packages:", [pkg.ID for pkg in truck2.packages])
+print()  # Just for spacing
+
 
 # Time to deliver the packages
+# We don't use a truck 3 since there are only 2 drivers but rather have truck 1 return and use the same truck
 truck1.deliver_packages(distance_data, address_list)
 truck2.deliver_packages(distance_data, address_list)
-truck3.deliver_packages(distance_data, address_list)
 
 
-# Once the first batch of packages are delivered, there will still be some packages left at the hub. We need to
-# find them and load them onto truck 1. First let's identify the remaining packages.
+
+# Once the first batch of packages are delivered, there will still be some packages left at the hub. We need to find
+# them and load them onto truck 1 (which has returned for delivery round 2). First let's identify the remaining packages
 undelivered = find_undelivered_package_ids(package_table)
-
-# Now we'll load them onto truck and deliver them.
-truck1.load_packages(undelivered)
+truck1.load_packages(undelivered) # Includes package 9 which is a special case (cannot be delivered until after 10:20am since the address isn't known)
 truck1.deliver_packages(distance_data, address_list)
 
 # Sums the mileage from all trucks, staying beneath the 140 mile limit.
-total_miles = truck1.mileage + truck2.mileage + truck3.mileage
+total_miles = truck1.mileage + truck2.mileage
 
 # Now we need to create the interface to check a single package's status at a user-defined time
 def check_single_package_status(user_input, package_id):
@@ -98,8 +104,10 @@ def check_single_package_status(user_input, package_id):
 
         if pkg.delivery_time and check_time >= pkg.delivery_time:
             status = f"Delivered at {pkg.delivery_time.strftime('%I:%M %p')}"
-        elif pkg.delivery_time and check_time < pkg.delivery_time and check_time >= datetime(2025, 1, 1, 8, 0):
+
+        elif pkg.delivery_time and check_time < pkg.delivery_time and check_time >= pkg.departure_time:
             status = "En route"
+
         else:
             status = "At hub"
 
@@ -114,17 +122,20 @@ def check_all_package_statuses(user_input):
         check_time = datetime.strptime(user_input, "%H:%M").replace(
             year=2025, month=1, day=1
         )
-        print(f"\n Package statuses at {check_time.strftime('%I:%M %p')}:\n")
+        print(f"\nPackage statuses at {check_time.strftime('%I:%M %p')}:\n")
 
-        for pkg_id in range(1, 41):  # assuming 40 packages
+        for pkg_id in range(1, 41):  # again assuming 40 packages
             pkg = package_table.get(pkg_id)
             if not pkg:
                 continue
 
             if pkg.delivery_time and check_time >= pkg.delivery_time:
                 status = f"Delivered at {pkg.delivery_time.strftime('%I:%M %p')}"
-            elif pkg.delivery_time and check_time < pkg.delivery_time and check_time >= datetime(2025, 1, 1, 8, 0):
+            # elif pkg.delivery_time and check_time < pkg.delivery_time and check_time >= datetime(2025, 1, 1, 8, 0):
+            #     status = "En route"
+            elif pkg.delivery_time and check_time < pkg.delivery_time and check_time >= pkg.departure_time: #need this extra constraint to ensure it's not falsely reported as being en route when it's still at the hub
                 status = "En route"
+
             else:
                 status = "At hub"
 
@@ -153,7 +164,10 @@ while True:
         time_input = input("Enter a time (HH:MM, 24-hour format): ")
         check_all_package_statuses(time_input)
     elif choice == "3":
-        print(f"\n Total mileage for all trucks: {total_miles:.2f} miles\n")
+        print("\nMileage Summary:")
+        print(f"Truck 1 mileage: {truck1.mileage:.2f} miles")
+        print(f"Truck 2 mileage: {truck2.mileage:.2f} miles")
+        print(f"\nTotal mileage for all trucks: {total_miles:.2f} miles\n")
     elif choice == "4":
         print("Exiting program.")
         break

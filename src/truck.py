@@ -25,15 +25,19 @@ class Truck:
         self.packages = []
         self.current_location = 0  # We'll assume the hub is always index 0
         self.mileage = 0.0
-        self.time = start_time  # datetime object like datetime(2023, 1, 1, 8, 0, 0)
+        self.departure_time = start_time
+        self.time = start_time # datetime object like datetime(2023, 1, 1, 8, 0, 0)
+        self.return_to_hub_miles = 0.0
 
     # Add packages by ID (we'll grab the actual objects from the hash table)
     def load_packages(self, package_ids):
         self.packages = []
-        for pkg_id in package_ids:
-            pkg = package_table.get(pkg_id)
-            if pkg:
-                self.packages.append(pkg)
+        for package_id in package_ids:
+            package = package_table.get(package_id)
+            if package:
+                self.packages.append(package)
+                package.status = "En route"
+                package.departure_time = self.departure_time # need this to make sure the packages status are reported correctly
 
     # This calculates the distance between two locations using a symmetric distance matrix
     def get_distance(self, from_index, to_index, distance_data):
@@ -77,9 +81,13 @@ class Truck:
 
                 # Print results
                 print(f"[{self.name}] Delivered Package #{next_pkg.ID} at {self.time.strftime('%I:%M %p')} (miles: {self.mileage:.2f})")
+            #print(f"[{self.name}] Final delivery run complete. Total miles: {self.mileage:.2f}")
 
-        # Return to hub (this is changeable if needed)
+
+        # Return to hub (add the miles from going back to the hub)
         return_to_hub = self.get_distance(self.current_location, 0, distance_data)
+        self.return_to_hub_miles = return_to_hub
         self.mileage += return_to_hub
         self.time += timedelta(hours=return_to_hub / self.speed)
         self.current_location = 0
+        print(f"[{self.name}] Returning to hub from address index {self.current_location} adds {return_to_hub:.2f} miles for a total of {self.mileage:.2f} miles.")
