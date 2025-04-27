@@ -65,20 +65,20 @@ class Truck:
             next_pkg, next_index, travel_distance = self.find_nearest_package(distance_data, address_list)
 
             if next_pkg:
-                # Update truck stats
+                # This updates the truck stats
                 self.mileage += travel_distance
                 travel_time = timedelta(hours=travel_distance / self.speed)
                 self.time += travel_time
 
-                # Deliver the package
+                # This delivers the package
                 next_pkg.status = "Delivered"
                 next_pkg.delivery_time = self.time
                 self.current_location = next_index
 
-                # Debug print (optional)
+                # Print results
                 print(f"[{self.name}] Delivered Package #{next_pkg.ID} at {self.time.strftime('%I:%M %p')} (miles: {self.mileage:.2f})")
 
-        # Return to hub (optional, depending on rules)
+        # Return to hub (this is changeable if needed)
         return_to_hub = self.get_distance(self.current_location, 0, distance_data)
         self.mileage += return_to_hub
         self.time += timedelta(hours=return_to_hub / self.speed)
